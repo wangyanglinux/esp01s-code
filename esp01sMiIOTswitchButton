@@ -1,0 +1,78 @@
+#define BLINKER_MIOT_LIGHT
+#define BLINKER_WIFI
+#include <Blinker.h>
+
+char auth[] = "5bcbd1111adf1359";
+char ssid[] = "wangyangmi";
+char pswd[] = "wangyang";
+
+// 新建组件对象
+BlinkerButton ButtonOn("btn-on");//按键的名称 开灯
+
+int counter = 0;
+int GPIO=0;//定义GPIO口用于控制继电器
+// 按下按键即会执行该函数
+void button1_callback(const String & state) {
+  if (state == "on") {
+    BLINKER_LOG("get button state: 开灯");
+    Blinker.print("switch", "on");
+    digitalWrite(GPIO, LOW);
+    delay(200);
+    ButtonOn.print("on");
+  }
+
+  if (state == "off") {
+    BLINKER_LOG("get button state: 关灯");
+    digitalWrite(GPIO, HIGH);
+    delay(200);
+     // 反馈开关状态
+     ButtonOn.print("off");
+  }
+  Blinker.vibrate(); 
+}
+
+// 如果未绑定的组件被触发，则会执行其中内容
+void dataRead(const String & data)
+{
+  BLINKER_LOG("Blinker readString: ", data);
+  counter++;
+}
+
+
+void miotPowerState(const String & state)
+{
+    BLINKER_LOG("need set power state: ",state);
+
+    if (state == BLINKER_CMD_OFF) {//如果语音接收到是关闭灯就设置GPIO口为高电平
+        digitalWrite(GPIO, HIGH);
+        BlinkerMIOT.powerState("off");
+        BlinkerMIOT.print();
+    }
+    else if (state == BLINKER_CMD_ON) {
+        digitalWrite(GPIO, LOW);
+        BlinkerMIOT.powerState("on");
+        BlinkerMIOT.print();
+    }
+}
+
+
+void setup() {
+  // 初始化串口
+  Serial.begin(115200);
+  pinMode(GPIO,OUTPUT);
+  digitalWrite(GPIO,HIGH);//初始化，由于继电器是低电平触发。所以刚开始设为高电平
+  BLINKER_DEBUG.stream(Serial);
+  BLINKER_DEBUG.debugAll();
+  // 初始化有LED的IO
+//  pinMode(LED_BUILTIN, OUTPUT);
+//  digitalWrite(LED_BUILTIN, HIGH);
+  // 初始化blinker
+  Blinker.begin(auth, ssid, pswd);
+  Blinker.attachData(dataRead);
+  ButtonOn.attach(button1_callback);
+  BlinkerMIOT.attachPowerState(miotPowerState);//这段代码一定要加，不加小爱同学控制不了,务必在回调函数中反馈该控制状态
+}
+
+void loop() {
+  Blinker.run();
+}
